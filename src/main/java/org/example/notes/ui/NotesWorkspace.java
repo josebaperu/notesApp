@@ -36,6 +36,7 @@ import org.example.notes.model.Folder;
 import org.example.notes.model.Note;
 import org.example.notes.model.SortMode;
 import org.example.notes.persist.FolderReveal;
+import org.example.notes.persist.SettingsStore;
 import org.example.notes.service.NotesService;
 
 import java.time.Clock;
@@ -45,6 +46,7 @@ import java.util.Optional;
 public class NotesWorkspace extends BorderPane {
     private final Stage stage;
     private final NotesService service;
+    private final SettingsStore settings;
     private final Clock clock;
     private final SidebarPane sidebar;
     private final NoteListPane listPane;
@@ -66,9 +68,10 @@ public class NotesWorkspace extends BorderPane {
     private boolean dark;
     private String leavingNoteId;
 
-    public NotesWorkspace(Stage stage, NotesService service, Clock clock) {
+    public NotesWorkspace(Stage stage, NotesService service, SettingsStore settings, Clock clock) {
         this.stage = stage;
         this.service = service;
+        this.settings = settings;
         this.clock = clock;
         getStyleClass().add("workspace");
 
@@ -93,7 +96,7 @@ public class NotesWorkspace extends BorderPane {
         setTop(new BorderPane(toolbar(), null, null, null, menuBar()));
         buildSplit();
         wire();
-        applyTheme(detectDark());
+        applyTheme(settings.dark(detectDark()), false);
         refreshAll();
         selectInitial();
     }
@@ -440,10 +443,10 @@ public class NotesWorkspace extends BorderPane {
     }
 
     private void toggleDark() {
-        applyTheme(!dark);
+        applyTheme(!dark, true);
     }
 
-    private void applyTheme(boolean dark) {
+    private void applyTheme(boolean dark, boolean persist) {
         this.dark = dark;
         getStyleClass().remove("theme-dark");
         if (dark) {
@@ -451,6 +454,9 @@ public class NotesWorkspace extends BorderPane {
         }
         editor.setDark(dark);
         paintIcons();
+        if (persist) {
+            settings.update(current -> current.setTheme(SettingsStore.fromDark(dark)));
+        }
     }
 
     private void paintIcons() {

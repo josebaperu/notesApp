@@ -5,6 +5,7 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import org.example.notes.persist.JsonRepository;
+import org.example.notes.persist.SettingsStore;
 import org.example.notes.service.NotesService;
 import org.example.notes.ui.NotesWorkspace;
 
@@ -17,8 +18,10 @@ public class NotesApp extends Application {
         Clock clock = Clock.systemDefaultZone();
         NotesService service = new NotesService(new JsonRepository(JsonRepository.defaultPath()), clock);
         service.load();
+        SettingsStore settings = new SettingsStore(SettingsStore.defaultPath());
+        settings.load();
 
-        NotesWorkspace workspace = new NotesWorkspace(stage, service, clock);
+        NotesWorkspace workspace = new NotesWorkspace(stage, service, settings, clock);
         Scene scene = new Scene(workspace, 1180, 760);
         scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/css/notes.css")).toExternalForm());
 
