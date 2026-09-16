@@ -1,6 +1,7 @@
 package org.example.notes.ui;
 
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -34,9 +35,9 @@ import javafx.util.Duration;
 import org.example.notes.model.Folder;
 import org.example.notes.model.Note;
 import org.example.notes.model.SortMode;
+import org.example.notes.persist.FolderReveal;
 import org.example.notes.service.NotesService;
 
-import java.awt.Desktop;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
@@ -110,10 +111,12 @@ public class NotesWorkspace extends BorderPane {
 
         MenuItem newNote = item("New Note", KeyCode.N, true, false, this::createNote);
         MenuItem newFolder = item("New Folder", KeyCode.N, true, true, this::createFolder);
-        MenuItem showData = new MenuItem("Show Data File");
-        showData.setOnAction(e -> revealDataFile());
         MenuItem close = item("Close", KeyCode.W, true, false, stage::close);
-        Menu file = new Menu("File", null, newNote, newFolder, new SeparatorMenuItem(), showData, close);
+        Menu file = new Menu("File", null, newNote, newFolder, new SeparatorMenuItem(), close);
+
+        MenuItem viewData = new MenuItem("View data");
+        viewData.setOnAction(e -> revealDataFile());
+        Menu storage = new Menu("Storage", null, viewData);
 
         MenuItem find = item("Find", KeyCode.F, true, false, () -> search.requestFocus());
         Menu edit = new Menu("Edit", null, find);
@@ -171,7 +174,7 @@ public class NotesWorkspace extends BorderPane {
         MenuItem delete = item("Delete", KeyCode.BACK_SPACE, true, false, this::deleteSelected);
         Menu note = new Menu("Note", null, pin, delete);
 
-        bar.getMenus().addAll(file, edit, format, view, note);
+        bar.getMenus().addAll(file, edit, format, view, note, storage);
         return bar;
     }
 
@@ -504,17 +507,23 @@ public class NotesWorkspace extends BorderPane {
     }
 
     private void revealDataFile() {
-        try {
-            var file = service.dataFile().path();
-            if (file.getParent() != null && Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().open(file.getParent().toFile());
+        var file = service.dataFile().path();
+        Thread opener = new Thread(() -> {
+            try {
+                FolderReveal.reveal(file);
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION,
+                            file.toString() + "\n\n" + e.getMessage(),
+                            ButtonType.OK);
+                    alert.setHeaderText("Could not open the file manager. Notes are stored at");
+                    alert.initOwner(stage);
+                    alert.showAndWait();
+                });
             }
-        } catch (Exception ignored) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION, service.dataFile().path().toString(), ButtonType.OK);
-            alert.setHeaderText("Notes are stored at");
-            alert.initOwner(stage);
-            alert.showAndWait();
-        }
+        }, "reveal-storage-folder");
+        opener.setDaemon(true);
+        opener.start();
     }
 
     private boolean confirm(String title, String body) {
