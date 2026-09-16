@@ -29,7 +29,7 @@ public class NotesApp extends Application {
         if (icon != null) {
             stage.getIcons().add(new Image(icon.toExternalForm()));
         }
-        stage.setTitle("Notes");
+        stage.setTitle("notesApp");
         stage.setMinWidth(880);
         stage.setMinHeight(560);
         stage.setScene(scene);

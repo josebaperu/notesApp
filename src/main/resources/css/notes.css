@@ -210,6 +210,21 @@
     -fx-padding: 0 0 0 8;
 }
 
+.erase-all {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 4 8;
+    -fx-text-fill: -notes-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-cursor: hand;
+}
+
+.erase-all:hover {
+    -fx-background-color: -notes-hover;
+    -fx-text-fill: -notes-text;
+}
+
 .notes-scroll {
     -fx-background-color: -notes-bg;
     -fx-background: -notes-bg;

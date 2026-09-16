@@ -2,6 +2,7 @@ package org.example.notes.ui;
 
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -37,6 +38,7 @@ public class NoteListPane extends BorderPane {
     private final Clock clock;
     private final Label title = new Label();
     private final Label count = new Label();
+    private final Button eraseAll = new Button("Erase All");
     private final VBox list = new VBox(2);
     private final FlowPane gallery = new FlowPane();
     private final ScrollPane scroll;
@@ -56,6 +58,8 @@ public class NoteListPane extends BorderPane {
     };
     private BiConsumer<Note, Boolean> onReadOnly = (n, readOnly) -> {
     };
+    private Runnable onEraseAll = () -> {
+    };
 
     public NoteListPane(NotesService service, Clock clock) {
         this.service = service;
@@ -64,7 +68,14 @@ public class NoteListPane extends BorderPane {
 
         title.getStyleClass().add("list-title");
         count.getStyleClass().add("list-count");
-        HBox header = new HBox(title, count);
+        eraseAll.getStyleClass().add("erase-all");
+        eraseAll.setFocusTraversable(false);
+        eraseAll.setOnAction(e -> onEraseAll.run());
+        eraseAll.setVisible(false);
+        eraseAll.setManaged(false);
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        HBox header = new HBox(title, count, headerSpacer, eraseAll);
         header.getStyleClass().add("list-header");
         header.setAlignment(Pos.CENTER_LEFT);
         setTop(header);
@@ -106,6 +117,10 @@ public class NoteListPane extends BorderPane {
         this.onReadOnly = onReadOnly;
     }
 
+    public void setOnEraseAll(Runnable onEraseAll) {
+        this.onEraseAll = onEraseAll;
+    }
+
     public void setGalleryMode(boolean galleryMode) {
         this.galleryMode = galleryMode;
     }
@@ -127,6 +142,9 @@ public class NoteListPane extends BorderPane {
         title.setText(heading);
         int n = notes.size();
         count.setText(n + (n == 1 ? " note" : " notes"));
+        boolean trash = Folder.DELETED_ID.equals(folder.getId());
+        eraseAll.setVisible(trash && n > 0);
+        eraseAll.setManaged(trash && n > 0);
 
         list.getChildren().clear();
         gallery.getChildren().clear();

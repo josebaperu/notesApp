@@ -37,6 +37,8 @@ public class SidebarPane extends BorderPane {
     };
     private Consumer<Folder> onDelete = f -> {
     };
+    private Runnable onEraseAll = () -> {
+    };
 
     public SidebarPane(NotesService service) {
         this.service = service;
@@ -76,6 +78,10 @@ public class SidebarPane extends BorderPane {
 
     public void setOnDelete(Consumer<Folder> onDelete) {
         this.onDelete = onDelete;
+    }
+
+    public void setOnEraseAll(Runnable onEraseAll) {
+        this.onEraseAll = onEraseAll;
     }
 
     public String selectedFolderId() {
@@ -151,6 +157,11 @@ public class SidebarPane extends BorderPane {
                 delete.setOnAction(e -> onDelete.accept(folder));
                 menu.getItems().addAll(new SeparatorMenuItem(), delete);
             }
+            row.setOnContextMenuRequested(e -> menu.show(row, e.getScreenX(), e.getScreenY()));
+        } else if (folder.getKind() == FolderKind.DELETED) {
+            MenuItem erase = new MenuItem("Erase All");
+            erase.setOnAction(e -> onEraseAll.run());
+            ContextMenu menu = new ContextMenu(erase);
             row.setOnContextMenuRequested(e -> menu.show(row, e.getScreenX(), e.getScreenY()));
         }
         return row;

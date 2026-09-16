@@ -60,6 +60,25 @@ class NotesServiceTest {
     }
 
     @Test
+    void emptyTrashRemovesAllDeletedNotes() {
+        Note a = service.createNote(Folder.DEFAULT_ID);
+        service.updateContent(a.getId(), "<p>A</p>", "A");
+        Note b = service.createNote(Folder.DEFAULT_ID);
+        service.updateContent(b.getId(), "<p>B</p>", "B");
+        Note keep = service.createNote(Folder.DEFAULT_ID);
+        service.updateContent(keep.getId(), "<p>Keep</p>", "Keep");
+        service.deleteNote(a.getId());
+        service.deleteNote(b.getId());
+        assertEquals(2, service.visibleNotes(Folder.DELETED_ID, "", null).size());
+
+        service.emptyTrash();
+
+        assertTrue(service.visibleNotes(Folder.DELETED_ID, "", null).isEmpty());
+        assertEquals(1, service.visibleNotes(Folder.ALL_ID, "", null).size());
+        assertEquals("Keep", service.visibleNotes(Folder.ALL_ID, "", null).getFirst().getTitle());
+    }
+
+    @Test
     void emptyNotesAreDiscarded() {
         Note note = service.createNote(Folder.DEFAULT_ID);
         assertTrue(service.discardIfEmpty(note.getId()));

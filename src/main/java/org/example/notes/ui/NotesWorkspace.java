@@ -174,8 +174,10 @@ public class NotesWorkspace extends BorderPane {
                 darkMode);
 
         MenuItem pin = item("Pin Note", KeyCode.P, true, true, this::togglePin);
-        MenuItem delete = item("Delete", KeyCode.BACK_SPACE, true, false, this::deleteSelected);
-        Menu note = new Menu("Note", null, pin, delete);
+        MenuItem delete = item("Delete", KeyCode.BACK_SPACE, true, false, this::deleteFromToolbar);
+        MenuItem eraseAll = new MenuItem("Erase All Recently Deleted");
+        eraseAll.setOnAction(e -> emptyTrash());
+        Menu note = new Menu("Note", null, pin, delete, eraseAll);
 
         bar.getMenus().addAll(file, edit, format, view, note, storage);
         return bar;
@@ -187,7 +189,7 @@ public class NotesWorkspace extends BorderPane {
         tableButton.setOnAction(e -> editor.command("table", null));
 
         newNoteButton.setOnAction(e -> createNote());
-        deleteButton.setOnAction(e -> deleteSelected());
+        deleteButton.setOnAction(e -> deleteFromToolbar());
         pinButton.setOnAction(e -> togglePin());
         recoverButton.setOnAction(e -> restoreSelected());
         recoverButton.setVisible(false);
@@ -234,7 +236,9 @@ public class NotesWorkspace extends BorderPane {
         sidebar.setOnNewFolder(this::createFolder);
         sidebar.setOnRename(this::renameFolder);
         sidebar.setOnDelete(this::deleteFolder);
+        sidebar.setOnEraseAll(this::emptyTrash);
         listPane.setOnSelect(this::selectNote);
+        listPane.setOnEraseAll(this::emptyTrash);
         listPane.setOnDelete(note -> {
             listPane.selectNote(note.getId());
             deleteSelected();
@@ -286,6 +290,7 @@ public class NotesWorkspace extends BorderPane {
         recoverButton.setManaged(trash);
         pinButton.setVisible(!trash);
         pinButton.setManaged(!trash);
+        deleteButton.setTooltip(new Tooltip(trash ? "Erase All" : "Delete"));
         restoreEditor();
         updateActionState();
     }
@@ -385,6 +390,14 @@ public class NotesWorkspace extends BorderPane {
         selectFirstNote();
     }
 
+    private void deleteFromToolbar() {
+        if (Folder.DELETED_ID.equals(sidebar.selectedFolderId())) {
+            emptyTrash();
+            return;
+        }
+        deleteSelected();
+    }
+
     private void deleteSelected() {
         String id = listPane.selectedNoteId();
         if (id == null) {
@@ -402,6 +415,23 @@ public class NotesWorkspace extends BorderPane {
         listPane.selectNote(null);
         refreshAll();
         selectFirstNote();
+    }
+
+    private void emptyTrash() {
+        int n = service.visibleNotes(Folder.DELETED_ID, "", null).size();
+        if (n == 0) {
+            return;
+        }
+        String body = n == 1
+                ? "Permanently delete this note? This cannot be undone."
+                : "Permanently delete all " + n + " notes? This cannot be undone.";
+        if (!confirm("Erase All", body)) {
+            return;
+        }
+        leavingNoteId = null;
+        service.emptyTrash();
+        listPane.selectNote(null);
+        refreshAll();
     }
 
     private void restoreSelected() {
@@ -508,9 +538,11 @@ public class NotesWorkspace extends BorderPane {
 
     private void updateActionState() {
         boolean has = listPane.selectedNoteId() != null;
+        boolean trash = Folder.DELETED_ID.equals(sidebar.selectedFolderId());
+        boolean trashHasNotes = !service.visibleNotes(Folder.DELETED_ID, "", null).isEmpty();
         boolean readOnly = service.note(listPane.selectedNoteId()).map(Note::isReadOnly).orElse(false);
-        deleteButton.setDisable(!has);
-        pinButton.setDisable(!has || Folder.DELETED_ID.equals(sidebar.selectedFolderId()));
+        deleteButton.setDisable(trash ? !trashHasNotes : !has);
+        pinButton.setDisable(!has || trash);
         recoverButton.setDisable(!has);
         formatButton.setDisable(!has || readOnly);
         checklistButton.setDisable(!has || readOnly);
