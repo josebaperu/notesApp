@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --text: #1d1d1f;
+            --muted: #86868b;
+            --placeholder: #c7c7cc;
+            --bg: #ffffff;
+            --code-bg: #f5f5f7;
+            --accent: #ffcc00;
+        }
+        html.dark {
+            --text: #f5f5f7;
+            --muted: #98989d;
+            --placeholder: #636366;
+            --bg: #1c1c1e;
+            --code-bg: #2c2c2e;
+            --accent: #ffd60a;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            height: 100%;
+        }
+        body {
+            font-family: "Noto Sans", "Liberation Sans", "DejaVu Sans", -apple-system, system-ui, sans-serif;
+            font-size: 17px;
+            line-height: 1.47;
+            letter-spacing: -0.2px;
+        }
+        #content {
+            outline: none;
+            min-height: 100%;
+            padding: 8px 44px 48px 44px;
+            box-sizing: border-box;
+        }
+        #content:empty:before {
+            content: "New Note";
+            color: var(--placeholder);
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            margin: 0 0 10px 0;
+        }
+        h2 {
+            font-size: 22px;
+            font-weight: 650;
+            letter-spacing: -0.3px;
+            margin: 18px 0 8px 0;
+        }
+        h3 {
+            font-size: 18px;
+            font-weight: 650;
+            margin: 14px 0 6px 0;
+        }
+        p { margin: 0 0 10px 0; }
+        ul, ol { margin: 6px 0 12px 0; padding-left: 22px; }
+        li { margin: 3px 0; }
+        pre, code, .mono {
+            font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+            font-size: 14.5px;
+            background: var(--code-bg);
+            border-radius: 6px;
+        }
+        pre { padding: 10px 12px; }
+        a { color: #0a84ff; }
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin: 6px 0;
+        }
+        .checklist-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin-top: 5px;
+            accent-color: var(--accent);
+            flex: none;
+        }
+        .checklist-item .cl-text {
+            flex: 1;
+            outline: none;
+            min-height: 1.2em;
+        }
+        .checklist-item input:checked + .cl-text {
+            color: var(--muted);
+            text-decoration: line-through;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 10px 0 16px 0;
+            width: 100%;
+        }
+        td, th {
+            border: 1px solid #d2d2d7;
+            padding: 8px 10px;
+            min-width: 80px;
+        }
+        html.dark td, html.dark th { border-color: #3a3a3c; }
+    </style>
+</head>
+<body>
+<div id="content" contenteditable="true" spellcheck="true"></div>
+<script>
+    const content = document.getElementById('content');
+
+    function notify() {
+        if (window.javaApp && window.javaApp.onContentChanged) {
+            window.javaApp.onContentChanged(content.innerHTML, content.innerText || '');
+        }
+    }
+
+    content.addEventListener('input', notify);
+    content.addEventListener('keyup', notify);
+    document.addEventListener('change', notify, true);
+
+    document.addEventListener('keydown', function (e) {
+        const meta = e.metaKey || e.ctrlKey;
+        if (!meta) return;
+        const key = e.key.toLowerCase();
+        if (key === 'b') { document.execCommand('bold'); e.preventDefault(); }
+        else if (key === 'i') { document.execCommand('italic'); e.preventDefault(); }
+        else if (key === 'u') { document.execCommand('underline'); e.preventDefault(); }
+    });
+
+    function setHtml(html) {
+        content.innerHTML = html || '';
+    }
+
+    function getHtml() {
+        return content.innerHTML;
+    }
+
+    function getText() {
+        return content.innerText || '';
+    }
+
+    function focusEditor() {
+        content.focus();
+        const range = document.createRange();
+        range.selectNodeContents(content);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function applyCommand(command, value) {
+        content.focus();
+        document.execCommand('styleWithCSS', false, true);
+        if (command === 'title') document.execCommand('formatBlock', false, 'h1');
+        else if (command === 'heading') document.execCommand('formatBlock', false, 'h2');
+        else if (command === 'subheading') document.execCommand('formatBlock', false, 'h3');
+        else if (command === 'body') document.execCommand('formatBlock', false, 'p');
+        else if (command === 'mono') document.execCommand('formatBlock', false, 'pre');
+        else if (command === 'checklist') insertChecklist();
+        else if (command === 'table') insertTable();
+        else document.execCommand(command, false, value || null);
+        notify();
+    }
+
+    function insertChecklist() {
+        document.execCommand('insertHTML', false,
+            '<div class="checklist-item"><input type="checkbox"><span class="cl-text">&#8203;</span></div>');
+    }
+
+    function insertTable() {
+        document.execCommand('insertHTML', false,
+            '<table><tr><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td></tr></table>');
+    }
+
+    function setDark(dark) {
+        document.documentElement.classList.toggle('dark', !!dark);
+    }
+
+    document.execCommand('styleWithCSS', false, true);
+</script>
+</body>
+</html>
