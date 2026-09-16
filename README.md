@@ -62,6 +62,7 @@ If you delete `notes.json`, the next launch creates a new one and seeds the samp
 
 - Three-pane layout in the style of Apple Notes
 - Folders, tags (`#work`), pin, search, list and gallery views
+- Per-note read-only checkbox: checked notes cannot be edited
 - Rich text: title, heading, lists, checklists, tables, highlight
 - Soft-delete to Recently Deleted (purged after 30 days)
 - Light and dark theme (follows the desktop until you toggle it)

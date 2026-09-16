@@ -12,6 +12,7 @@ public class Note {
     private String html = "";
     private String plainText = "";
     private boolean pinned;
+    private boolean readOnly;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -92,6 +93,14 @@ public class Note {
 
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
+    }
+
+    public boolean isReadOnly() {
+        return readOnly;
+    }
+
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
     }
 
     public Instant getCreatedAt() {

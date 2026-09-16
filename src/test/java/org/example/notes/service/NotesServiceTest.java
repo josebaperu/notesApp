@@ -92,6 +92,39 @@ class NotesServiceTest {
     }
 
     @Test
+    void readOnlyNotesRejectContentUpdatesAndPersist() {
+        Note note = service.createNote(Folder.DEFAULT_ID);
+        service.updateContent(note.getId(), "<p>Keep</p>", "Keep");
+        service.setReadOnly(note.getId(), true);
+        service.updateContent(note.getId(), "<p>Changed</p>", "Changed");
+        Note locked = service.note(note.getId()).orElseThrow();
+        assertTrue(locked.isReadOnly());
+        assertEquals("Keep", locked.getTitle());
+        assertEquals("<p>Keep</p>", locked.getHtml());
+
+        service.save();
+        NotesService reloaded = new NotesService(new JsonRepository(temp.resolve("notes.json")),
+                Clock.fixed(Instant.parse("2026-09-16T12:00:00Z"), ZoneOffset.UTC));
+        reloaded.setSeedIfEmpty(false);
+        reloaded.load();
+        Note loaded = reloaded.note(note.getId()).orElseThrow();
+        assertTrue(loaded.isReadOnly());
+        assertEquals("Keep", loaded.getTitle());
+
+        service.setReadOnly(note.getId(), false);
+        service.updateContent(note.getId(), "<p>Changed</p>", "Changed");
+        assertEquals("Changed", service.note(note.getId()).orElseThrow().getTitle());
+    }
+
+    @Test
+    void emptyReadOnlyNotesAreNotDiscarded() {
+        Note note = service.createNote(Folder.DEFAULT_ID);
+        service.setReadOnly(note.getId(), true);
+        assertFalse(service.discardIfEmpty(note.getId()));
+        assertTrue(service.note(note.getId()).isPresent());
+    }
+
+    @Test
     void pinAndMove() {
         Folder folder = service.createFolder("Personal");
         Note note = service.createNote(Folder.DEFAULT_ID);

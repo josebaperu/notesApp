@@ -242,6 +242,30 @@
     -fx-background-color: -notes-yellow-selected;
 }
 
+.note-readonly {
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.note-readonly > .box {
+    -fx-padding: 1;
+    -fx-background-insets: 0;
+    -fx-background-radius: 3;
+    -fx-border-color: -notes-muted;
+    -fx-border-radius: 3;
+    -fx-border-width: 1.2;
+    -fx-background-color: -notes-card;
+}
+
+.note-readonly:selected > .box {
+    -fx-background-color: -notes-yellow;
+    -fx-border-color: #c9a000;
+}
+
+.note-readonly:selected > .box > .mark {
+    -fx-background-color: #3a2a00;
+}
+
 .note-title {
     -fx-font-size: 13px;
     -fx-font-weight: 700;

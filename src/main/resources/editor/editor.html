@@ -38,6 +38,9 @@
             padding: 8px 44px 48px 44px;
             box-sizing: border-box;
         }
+        #content[contenteditable="false"] {
+            cursor: default;
+        }
         #content:empty:before {
             content: "New Note";
             color: var(--placeholder);
@@ -110,21 +113,51 @@
 <div id="content" contenteditable="true" spellcheck="true"></div>
 <script>
     const content = document.getElementById('content');
+    let readOnly = false;
 
     function notify() {
+        if (readOnly) return;
         if (window.javaApp && window.javaApp.onContentChanged) {
             window.javaApp.onContentChanged(content.innerHTML, content.innerText || '');
         }
     }
 
+    function applyInputDisabled() {
+        content.querySelectorAll('input, textarea').forEach(function (el) {
+            el.disabled = readOnly;
+        });
+    }
+
+    function setReadOnly(flag) {
+        readOnly = !!flag;
+        content.contentEditable = readOnly ? 'false' : 'true';
+        applyInputDisabled();
+    }
+
     content.addEventListener('input', notify);
     content.addEventListener('keyup', notify);
     document.addEventListener('change', notify, true);
+    content.addEventListener('paste', function (e) {
+        if (readOnly) e.preventDefault();
+    });
+    content.addEventListener('cut', function (e) {
+        if (readOnly) e.preventDefault();
+    });
+    content.addEventListener('drop', function (e) {
+        if (readOnly) e.preventDefault();
+    });
 
     document.addEventListener('keydown', function (e) {
         const meta = e.metaKey || e.ctrlKey;
-        if (!meta) return;
         const key = e.key.toLowerCase();
+        if (readOnly) {
+            if (meta && (key === 'c' || key === 'a')) return;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].indexOf(e.key) >= 0) return;
+            if (e.key === 'Tab' || e.key === 'Escape' || e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta' || e.key === 'Alt') return;
+            e.preventDefault();
+            return;
+        }
+        if (!meta) return;
         if (key === 'b') { document.execCommand('bold'); e.preventDefault(); }
         else if (key === 'i') { document.execCommand('italic'); e.preventDefault(); }
         else if (key === 'u') { document.execCommand('underline'); e.preventDefault(); }
@@ -132,6 +165,7 @@
 
     function setHtml(html) {
         content.innerHTML = html || '';
+        applyInputDisabled();
     }
 
     function getHtml() {
@@ -153,6 +187,7 @@
     }
 
     function applyCommand(command, value) {
+        if (readOnly) return;
         content.focus();
         document.execCommand('styleWithCSS', false, true);
         if (command === 'title') document.execCommand('formatBlock', false, 'h1');

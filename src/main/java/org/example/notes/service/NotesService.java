@@ -142,6 +142,9 @@ public class NotesService {
 
     public void updateContent(String noteId, String html, String plainText) {
         note(noteId).ifPresent(note -> {
+            if (note.isReadOnly()) {
+                return;
+            }
             note.setHtml(html == null ? "" : html);
             note.setPlainText(plainText == null ? "" : plainText);
             note.setTitle(titleFrom(plainText));
@@ -200,6 +203,14 @@ public class NotesService {
         });
     }
 
+    public void setReadOnly(String noteId, boolean readOnly) {
+        note(noteId).ifPresent(note -> {
+            note.setReadOnly(readOnly);
+            fire();
+            save();
+        });
+    }
+
     public void moveNote(String noteId, String folderId) {
         note(noteId).ifPresent(note -> {
             if (note.isDeleted() || Folder.ALL_ID.equals(folderId) || Folder.DELETED_ID.equals(folderId)) {
@@ -221,7 +232,7 @@ public class NotesService {
             return false;
         }
         Note note = found.get();
-        if (!note.isEmpty() || note.isDeleted()) {
+        if (!note.isEmpty() || note.isDeleted() || note.isReadOnly()) {
             return false;
         }
         data.getNotes().remove(note);

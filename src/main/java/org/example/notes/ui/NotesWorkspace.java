@@ -253,6 +253,13 @@ public class NotesWorkspace extends BorderPane {
             service.moveNote(note.getId(), folderId);
             refreshAll();
         });
+        listPane.setOnReadOnly((note, readOnly) -> {
+            service.setReadOnly(note.getId(), readOnly);
+            if (note.getId().equals(listPane.selectedNoteId())) {
+                restoreEditor();
+                updateActionState();
+            }
+        });
         editor.setChangeListener((html, text) -> {
             String id = editor.currentNoteId();
             if (id == null) {
@@ -501,9 +508,13 @@ public class NotesWorkspace extends BorderPane {
 
     private void updateActionState() {
         boolean has = listPane.selectedNoteId() != null;
+        boolean readOnly = service.note(listPane.selectedNoteId()).map(Note::isReadOnly).orElse(false);
         deleteButton.setDisable(!has);
         pinButton.setDisable(!has || Folder.DELETED_ID.equals(sidebar.selectedFolderId()));
         recoverButton.setDisable(!has);
+        formatButton.setDisable(!has || readOnly);
+        checklistButton.setDisable(!has || readOnly);
+        tableButton.setDisable(!has || readOnly);
         service.note(listPane.selectedNoteId()).ifPresent(note ->
                 pinButton.setTooltip(new Tooltip(note.isPinned() ? "Unpin" : "Pin")));
     }

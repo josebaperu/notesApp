@@ -24,6 +24,7 @@ public class EditorPane extends BorderPane {
     private boolean ready;
     private boolean applying;
     private boolean dark;
+    private boolean readOnly;
     private String currentNoteId;
     private String pendingHtml;
 
@@ -46,6 +47,7 @@ public class EditorPane extends BorderPane {
                 window.setMember("javaApp", bridge);
                 ready = true;
                 engine.executeScript("setDark(" + dark + ")");
+                engine.executeScript("setReadOnly(" + readOnly + ")");
                 if (pendingHtml != null) {
                     applyHtmlNow(pendingHtml);
                     pendingHtml = null;
@@ -69,7 +71,7 @@ public class EditorPane extends BorderPane {
 
     public void setChangeListener(BiConsumer<String, String> listener) {
         bridge.setListener((html, text) -> {
-            if (applying || currentNoteId == null) {
+            if (applying || currentNoteId == null || readOnly) {
                 return;
             }
             listener.accept(html, text);
@@ -80,12 +82,16 @@ public class EditorPane extends BorderPane {
         empty.setVisible(false);
         webView.setVisible(true);
         dateLabel.setVisible(true);
-        dateLabel.setText(DateGroups.editorTimestamp(note, clock));
+        String stamp = DateGroups.editorTimestamp(note, clock);
+        dateLabel.setText(note.isReadOnly() ? stamp + "  ·  Read-only" : stamp);
         boolean same = note.getId().equals(currentNoteId);
         currentNoteId = note.getId();
+        setReadOnly(note.isReadOnly());
         if (!same) {
             applyHtml(note.getHtml());
-            focusEditor();
+            if (!note.isReadOnly()) {
+                focusEditor();
+            }
         }
     }
 
@@ -104,8 +110,15 @@ public class EditorPane extends BorderPane {
         }
     }
 
+    public void setReadOnly(boolean readOnly) {
+        this.readOnly = readOnly;
+        if (ready) {
+            engine.executeScript("setReadOnly(" + readOnly + ")");
+        }
+    }
+
     public void command(String command, String value) {
-        if (!ready || currentNoteId == null) {
+        if (!ready || currentNoteId == null || readOnly) {
             return;
         }
         String escaped = value == null ? "null" : "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'";

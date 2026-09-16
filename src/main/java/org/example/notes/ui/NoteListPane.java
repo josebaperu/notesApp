@@ -1,6 +1,8 @@
 package org.example.notes.ui;
 
 import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
@@ -8,7 +10,9 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -49,6 +53,8 @@ public class NoteListPane extends BorderPane {
     private Consumer<Note> onRestore = n -> {
     };
     private BiConsumer<Note, String> onMove = (n, folderId) -> {
+    };
+    private BiConsumer<Note, Boolean> onReadOnly = (n, readOnly) -> {
     };
 
     public NoteListPane(NotesService service, Clock clock) {
@@ -94,6 +100,10 @@ public class NoteListPane extends BorderPane {
 
     public void setOnMove(BiConsumer<Note, String> onMove) {
         this.onMove = onMove;
+    }
+
+    public void setOnReadOnly(BiConsumer<Note, Boolean> onReadOnly) {
+        this.onReadOnly = onReadOnly;
     }
 
     public void setGalleryMode(boolean galleryMode) {
@@ -176,7 +186,7 @@ public class NoteListPane extends BorderPane {
         date.getStyleClass().add("note-date");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox top = new HBox(8, titleLabel, spacer, date);
+        HBox top = new HBox(8, readOnlyBox(note), titleLabel, spacer, date);
         top.setAlignment(Pos.CENTER_LEFT);
 
         Label preview = new Label(previewText(note));
@@ -188,9 +198,7 @@ public class NoteListPane extends BorderPane {
         VBox cell = new VBox(2, top, preview);
         cell.getStyleClass().add("note-cell");
         cell.setUserData(note);
-        if (note.getId().equals(selectedNoteId)) {
-            cell.getStyleClass().add("selected");
-        }
+        applySelected(cell, note);
         cell.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
                 selectedNoteId = note.getId();
@@ -205,18 +213,19 @@ public class NoteListPane extends BorderPane {
         Label titleLabel = new Label(note.displayTitle());
         titleLabel.getStyleClass().add("note-title");
         titleLabel.setWrapText(true);
+        HBox.setHgrow(titleLabel, Priority.ALWAYS);
+        HBox heading = new HBox(6, readOnlyBox(note), titleLabel);
+        heading.setAlignment(Pos.CENTER_LEFT);
         Label preview = new Label(previewText(note));
         preview.getStyleClass().add("note-preview");
         preview.setWrapText(true);
         VBox.setVgrow(preview, Priority.ALWAYS);
         Label date = new Label(DateGroups.listTimestamp(note, clock));
         date.getStyleClass().add("note-date");
-        VBox card = new VBox(6, titleLabel, preview, date);
+        VBox card = new VBox(6, heading, preview, date);
         card.getStyleClass().add("gallery-card");
         card.setUserData(note);
-        if (note.getId().equals(selectedNoteId)) {
-            card.getStyleClass().add("selected");
-        }
+        applySelected(card, note);
         card.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
                 selectedNoteId = note.getId();
@@ -227,34 +236,59 @@ public class NoteListPane extends BorderPane {
         return card;
     }
 
+    private CheckBox readOnlyBox(Note note) {
+        CheckBox box = new CheckBox();
+        box.getStyleClass().add("note-readonly");
+        box.setSelected(note.isReadOnly());
+        box.setFocusTraversable(false);
+        box.setTooltip(new Tooltip(note.isReadOnly() ? "Read-only" : "Mark as read-only"));
+        box.setOnAction(e -> {
+            onReadOnly.accept(note, box.isSelected());
+            box.setTooltip(new Tooltip(box.isSelected() ? "Read-only" : "Mark as read-only"));
+        });
+        box.addEventHandler(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
+        return box;
+    }
+
     private void updateCell(VBox cell, Note note) {
         if (cell.getChildren().getFirst() instanceof HBox top) {
-            if (top.getChildren().getFirst() instanceof Label titleLabel) {
-                titleLabel.setText(note.displayTitle());
-            }
-            if (top.getChildren().getLast() instanceof Label date) {
-                date.setText(DateGroups.listTimestamp(note, clock));
-            }
+            updateHeading(top, note);
         }
         if (cell.getChildren().size() > 1 && cell.getChildren().get(1) instanceof Label preview) {
             preview.setText(previewText(note));
         }
-        cell.getStyleClass().remove("selected");
-        if (note.getId().equals(selectedNoteId)) {
-            cell.getStyleClass().add("selected");
-        }
+        applySelected(cell, note);
     }
 
     private void updateCard(VBox card, Note note) {
-        if (card.getChildren().getFirst() instanceof Label titleLabel) {
+        if (card.getChildren().getFirst() instanceof HBox heading) {
+            updateHeading(heading, note);
+        } else if (card.getChildren().getFirst() instanceof Label titleLabel) {
             titleLabel.setText(note.displayTitle());
         }
         if (card.getChildren().size() > 1 && card.getChildren().get(1) instanceof Label preview) {
             preview.setText(previewText(note));
         }
-        card.getStyleClass().remove("selected");
+        applySelected(card, note);
+    }
+
+    private void updateHeading(HBox heading, Note note) {
+        for (Node child : heading.getChildren()) {
+            if (child instanceof CheckBox box) {
+                box.setSelected(note.isReadOnly());
+                box.setTooltip(new Tooltip(note.isReadOnly() ? "Read-only" : "Mark as read-only"));
+            } else if (child instanceof Label label && label.getStyleClass().contains("note-title")) {
+                label.setText(note.displayTitle());
+            } else if (child instanceof Label label && label.getStyleClass().contains("note-date")) {
+                label.setText(DateGroups.listTimestamp(note, clock));
+            }
+        }
+    }
+
+    private void applySelected(VBox node, Note note) {
+        node.getStyleClass().remove("selected");
         if (note.getId().equals(selectedNoteId)) {
-            card.getStyleClass().add("selected");
+            node.getStyleClass().add("selected");
         }
     }
 
