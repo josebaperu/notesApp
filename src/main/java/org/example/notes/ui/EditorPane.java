@@ -195,7 +195,7 @@ public class EditorPane extends BorderPane {
         cutItem.setOnAction(e -> cut());
         copyItem.setOnAction(e -> copy());
         pasteItem.setOnAction(e -> paste());
-        clipboardMenu.getItems().addAll(cutItem, copyItem, pasteItem);
+        clipboardMenu.getItems().addAll(copyItem, cutItem, pasteItem);
     }
 
     private void showClipboardMenuFromClient(double clientX, double clientY, boolean hasSelection) {
