@@ -402,6 +402,14 @@
     -fx-background-radius: 8;
 }
 
+.context-menu .menu-item:disabled {
+    -fx-opacity: 0.4;
+}
+
+.context-menu .menu-item:disabled .label {
+    -fx-text-fill: -notes-muted;
+}
+
 .scroll-bar:vertical,
 .scroll-bar:horizontal {
     -fx-background-color: transparent;
