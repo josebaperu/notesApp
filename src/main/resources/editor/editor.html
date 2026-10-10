@@ -215,6 +215,83 @@
         document.documentElement.classList.toggle('dark', !!dark);
     }
 
+    let savedRange = null;
+
+    function hasSelection() {
+        if (savedRange && !savedRange.collapsed) {
+            return true;
+        }
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.anchorNode) {
+            return false;
+        }
+        return content === sel.anchorNode || content.contains(sel.anchorNode);
+    }
+
+    function saveSelection() {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !sel.anchorNode) {
+            savedRange = null;
+            return;
+        }
+        if (content !== sel.anchorNode && !content.contains(sel.anchorNode)) {
+            savedRange = null;
+            return;
+        }
+        savedRange = sel.getRangeAt(0).cloneRange();
+    }
+
+    function restoreSelection() {
+        if (!savedRange) return;
+        content.focus();
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+    }
+
+    function selectedText() {
+        restoreSelection();
+        const sel = window.getSelection();
+        return sel ? (sel.toString() || '') : '';
+    }
+
+    function selectedHtml() {
+        restoreSelection();
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return '';
+        const container = document.createElement('div');
+        container.appendChild(sel.getRangeAt(0).cloneContents());
+        return container.innerHTML;
+    }
+
+    function deleteSelection() {
+        if (readOnly) return;
+        restoreSelection();
+        content.focus();
+        document.execCommand('delete');
+        savedRange = null;
+        notify();
+    }
+
+    function insertClipboard(html, text) {
+        if (readOnly) return;
+        content.focus();
+        restoreSelection();
+        const startMark = '<!--StartFragment-->';
+        const endMark = '<!--EndFragment-->';
+        if (html) {
+            const start = html.indexOf(startMark);
+            const end = html.indexOf(endMark);
+            if (start >= 0 && end > start) {
+                html = html.substring(start + startMark.length, end);
+            }
+            document.execCommand('insertHTML', false, html);
+        } else if (text) {
+            document.execCommand('insertText', false, text);
+        }
+        notify();
+    }
+
     document.execCommand('styleWithCSS', false, true);
 </script>
 </body>
