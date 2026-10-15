@@ -2,12 +2,15 @@ package org.example.notes.ui;
 
 import javafx.application.Platform;
 import javafx.concurrent.Worker;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -19,7 +22,6 @@ import org.example.notes.model.Note;
 import org.example.notes.service.DateGroups;
 
 import java.time.Clock;
-import java.util.Locale;
 import java.util.function.BiConsumer;
 
 public class EditorPane extends BorderPane {
@@ -33,6 +35,7 @@ public class EditorPane extends BorderPane {
     private boolean applying;
     private boolean dark;
     private boolean readOnly;
+    private boolean editMenuShownForGesture;
     private String currentNoteId;
     private String pendingHtml;
 
@@ -48,11 +51,9 @@ public class EditorPane extends BorderPane {
         webView = new WebView();
         webView.setContextMenuEnabled(false);
         webView.getStyleClass().add("web-view");
-        // WebView's own edit menu paints on macOS and Linux. On Windows the same
-        // right-click shows nothing, so the editor installs its own menu there.
-        if (isWindows()) {
-            installWindowsEditMenu();
-        }
+        // WebKit's built-in GTK menu often fails to paint on Linux/Wayland, and
+        // WebView's own edit menu is blank on Windows. Use a JavaFX menu everywhere.
+        installEditMenu();
         engine = webView.getEngine();
         engine.getLoadWorker().stateProperty().addListener((obs, old, state) -> {
             if (state == Worker.State.SUCCEEDED) {
@@ -168,7 +169,7 @@ public class EditorPane extends BorderPane {
         engine.executeScript("focusEditor()");
     }
 
-    private void installWindowsEditMenu() {
+    private void installEditMenu() {
         MenuItem cut = new MenuItem("Cut");
         MenuItem copy = new MenuItem("Copy");
         MenuItem paste = new MenuItem("Paste");
@@ -183,22 +184,58 @@ public class EditorPane extends BorderPane {
             copy.setDisable(!selection);
             paste.setDisable(!editable || !clipboardHasContent());
         });
-        webView.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
-            if (event.getButton() != MouseButton.SECONDARY || currentNoteId == null || !webView.isVisible()) {
+
+        // Capture before WebKitGTK consumes the right-click (common on Linux).
+        webView.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (event.getButton() == MouseButton.SECONDARY && ready) {
+                editMenuShownForGesture = false;
+                engine.executeScript("saveSelection()");
+            }
+        });
+        webView.addEventFilter(ContextMenuEvent.CONTEXT_MENU_REQUESTED, event -> {
+            if (currentNoteId == null || !webView.isVisible()) {
                 return;
             }
-            double screenX = event.getScreenX();
-            double screenY = event.getScreenY();
+            event.consume();
+            editMenuShownForGesture = true;
             if (ready) {
                 engine.executeScript("saveSelection()");
             }
-            // Showing during the release makes Windows dismiss the popup before it paints.
-            Platform.runLater(() -> {
-                if (menu.isShowing()) {
-                    menu.hide();
-                }
+            showEditMenu(menu, event.getScreenX(), event.getScreenY(), event.getX(), event.getY());
+        });
+        webView.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
+            if (event.getButton() != MouseButton.SECONDARY || editMenuShownForGesture) {
+                return;
+            }
+            if (currentNoteId == null || !webView.isVisible()) {
+                return;
+            }
+            event.consume();
+            if (ready) {
+                engine.executeScript("saveSelection()");
+            }
+            showEditMenu(menu, event.getScreenX(), event.getScreenY(), event.getX(), event.getY());
+        });
+    }
+
+    private void showEditMenu(ContextMenu menu, double screenX, double screenY, double localX, double localY) {
+        // Showing during the original event makes Windows dismiss the popup before it paints.
+        Platform.runLater(() -> {
+            if (currentNoteId == null || !webView.isVisible() || webView.getScene() == null) {
+                return;
+            }
+            if (menu.isShowing()) {
+                menu.hide();
+            }
+            Point2D mapped = webView.localToScreen(localX, localY);
+            if (mapped != null) {
+                menu.show(webView, mapped.getX(), mapped.getY());
+            } else if (screenX != 0 || screenY != 0) {
                 menu.show(webView, screenX, screenY);
-            });
+            } else {
+                // Wayland can omit global screen coordinates; fall back to node-relative.
+                menu.show(webView, Side.TOP, localX, localY);
+            }
         });
     }
 
@@ -263,9 +300,5 @@ public class EditorPane extends BorderPane {
         String text = clipboard.getString();
         String html = clipboard.getHtml();
         return (text != null && !text.isEmpty()) || (html != null && !html.isBlank());
-    }
-
-    private static boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 }

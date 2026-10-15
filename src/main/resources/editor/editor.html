@@ -137,6 +137,18 @@
     content.addEventListener('input', notify);
     content.addEventListener('keyup', notify);
     document.addEventListener('change', notify, true);
+    content.addEventListener('mousedown', function (e) {
+        if (e.button === 2) {
+            saveSelection();
+            return;
+        }
+        savedRange = null;
+    });
+    content.addEventListener('contextmenu', function (e) {
+        // Stop WebKitGTK from showing its native menu, which often fails to
+        // paint Cut/Copy/Paste on Wayland. JavaFX owns the edit menu instead.
+        e.preventDefault();
+    });
     content.addEventListener('paste', function (e) {
         if (readOnly) e.preventDefault();
     });
@@ -230,15 +242,17 @@
 
     function saveSelection() {
         const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !sel.anchorNode) {
-            savedRange = null;
+        if (!sel || sel.rangeCount === 0 || !sel.anchorNode) {
             return;
         }
         if (content !== sel.anchorNode && !content.contains(sel.anchorNode)) {
-            savedRange = null;
             return;
         }
-        savedRange = sel.getRangeAt(0).cloneRange();
+        // Keep the last non-empty range. Right-click often collapses the
+        // selection before the JavaFX menu reads it.
+        if (!sel.isCollapsed) {
+            savedRange = sel.getRangeAt(0).cloneRange();
+        }
     }
 
     function restoreSelection() {
